@@ -14,6 +14,7 @@ parameters:
         simulation: tempgrowth | co2sensor | temperature | o2sensor | poweroff | normal 
         nb_of_records: 250
         product_id: covid-19
+        nb_in_batch: 1
 responses:
     202:
         description: A successful reply
@@ -41,3 +42,7 @@ definitions:
             product_id: 
                 type: string
                 enum: [P01,P02,P03,P04,covid-19]
+            nb_in_batch:
+                type: integer
+                minimum: 1
+                maximum: 5000

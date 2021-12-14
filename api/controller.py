@@ -8,6 +8,7 @@ from api.prometheus import track_requests
 from infrastructure.MetricsEventsProducer import MetricsEventsProducer 
 from domain.reefer_simulator import ReeferSimulator
 import logging
+import datetime
 
 
 """
@@ -37,6 +38,7 @@ class SimulationController(Resource):
         for metric in metrics:
             print(metric)
             evt = {"containerID": metric['container_id'],
+                    "eventLogTime": str(datetime.datetime.now()),
                     "timestamp": str(metric['measurement_time']),
                     "type":"ReeferTelemetries",
                     "payload": metric}
@@ -53,24 +55,48 @@ class SimulationController(Resource):
         logging.info(control)
         if not 'containerID' in control:
             abort(400) 
-        
+
         nb_records = int(control["nb_of_records"])
-        if control["simulation"] == ReeferSimulator.SIMUL_POWEROFF:
-            metrics=self.simulator.generatePowerOff(control["containerID"],nb_records,control["product_id"])
-        elif  control["simulation"]  == ReeferSimulator.SIMUL_CO2:
-            metrics=self.simulator.generateCo2(control["containerID"],nb_records,control["product_id"])
-        elif  control["simulation"]  == ReeferSimulator.SIMUL_O2:
-            metrics=self.simulator.generateO2(control["containerID"],nb_records,control["product_id"])
-        elif  control["simulation"]  == ReeferSimulator.SIMUL_TEMPERATURE:
-            metrics=self.simulator.generateTemperature(control["containerID"],nb_records,control["product_id"])
-        elif  control["simulation"]  == ReeferSimulator.NORMAL:
-            metrics=self.simulator.generateNormal(control["containerID"],nb_records,control["product_id"])
-        elif  control["simulation"]  == ReeferSimulator.TEMP_GROWTH:
-            metrics=self.simulator.generateTemperatureGrowth(control["containerID"],nb_records,control["product_id"])
+
+        if 'nb_in_batch' in control:
+            nb_batch = int(control["nb_in_batch"])
+
+            # metrics_list = []
+            for container_name in [f'C{i:06}' for i in range(1,nb_batch)]:
+                if control["simulation"] == ReeferSimulator.SIMUL_POWEROFF:
+                    metrics=self.simulator.generatePowerOff(container_name,nb_records,control["product_id"])
+                elif  control["simulation"]  == ReeferSimulator.SIMUL_CO2:
+                    metrics=self.simulator.generateCo2(container_name,nb_records,control["product_id"])
+                elif  control["simulation"]  == ReeferSimulator.SIMUL_O2:
+                    metrics=self.simulator.generateO2(container_name,nb_records,control["product_id"])
+                elif  control["simulation"]  == ReeferSimulator.SIMUL_TEMPERATURE:
+                    metrics=self.simulator.generateTemperature(container_name,nb_records,control["product_id"])
+                elif  control["simulation"]  == ReeferSimulator.NORMAL:
+                    metrics=self.simulator.generateNormal(container_name,nb_records,control["product_id"])
+                elif  control["simulation"]  == ReeferSimulator.TEMP_GROWTH:
+                    metrics=self.simulator.generateTemperatureGrowth(container_name,nb_records,control["product_id"])
+                else:
+                    return {"error":"Wrong simulation controller data"},404
+                # metrics_list.append(metrics)
+                self.sendEvents(metrics)
+                # metrics = metrics_list
         else:
-            return {"error":"Wrong simulation controller data"},404
-    
-        self.sendEvents(metrics)
+            if control["simulation"] == ReeferSimulator.SIMUL_POWEROFF:
+                metrics=self.simulator.generatePowerOff(control["containerID"],nb_records,control["product_id"])
+            elif  control["simulation"]  == ReeferSimulator.SIMUL_CO2:
+                metrics=self.simulator.generateCo2(control["containerID"],nb_records,control["product_id"])
+            elif  control["simulation"]  == ReeferSimulator.SIMUL_O2:
+                metrics=self.simulator.generateO2(control["containerID"],nb_records,control["product_id"])
+            elif  control["simulation"]  == ReeferSimulator.SIMUL_TEMPERATURE:
+                metrics=self.simulator.generateTemperature(control["containerID"],nb_records,control["product_id"])
+            elif  control["simulation"]  == ReeferSimulator.NORMAL:
+                metrics=self.simulator.generateNormal(control["containerID"],nb_records,control["product_id"])
+            elif  control["simulation"]  == ReeferSimulator.TEMP_GROWTH:
+                metrics=self.simulator.generateTemperatureGrowth(control["containerID"],nb_records,control["product_id"])
+            else:
+                return {"error":"Wrong simulation controller data"},404
+        
+            self.sendEvents(metrics)
             
         return metrics,202
     
